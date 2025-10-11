@@ -151,24 +151,47 @@ class ConvBN(torch.nn.Sequential):
             torch.nn.init.constant_(self.bn.bias, 0)
 
 
-class StarBlock(nn.Module):
-    def __init__(self, dim_in, dim_out,mlp_ratio=3):
-        super(StarBlock,self).__init__()
-        self.dwconv = ConvBN(dim_in, dim_in, 7, 1, (7 - 1) // 2, groups=dim_in, with_bn=True)
-        self.f1 = ConvBN(dim_in, mlp_ratio * dim_in, 1, with_bn=False)
-        self.f2 = ConvBN(dim_in, mlp_ratio * dim_in, 1, with_bn=False)
-        self.g = ConvBN(mlp_ratio * dim_in, dim_out, 1, with_bn=True)
-        self.dwconv2 = ConvBN(dim_out, dim_out, 7, 1, (7 - 1) // 2, groups=dim_out, with_bn=False)
-        self.act = nn.ReLU6()
-        self.aux_g = ConvBN(dim_in, dim_out, 1, with_bn=True)
+# class StarBlock(nn.Module):
+#     def __init__(self, dim_in, dim_out,mlp_ratio=3):
+#         super(StarBlock,self).__init__()
+#         self.dwconv = ConvBN(dim_in, dim_in, 7, 1, (7 - 1) // 2, groups=dim_in, with_bn=True)
+#         self.f1 = ConvBN(dim_in, mlp_ratio * dim_in, 1, with_bn=False)
+#         self.f2 = ConvBN(dim_in, mlp_ratio * dim_in, 1, with_bn=False)
+#         self.g = ConvBN(mlp_ratio * dim_in, dim_out, 1, with_bn=True)
+#         self.dwconv2 = ConvBN(dim_out, dim_out, 7, 1, (7 - 1) // 2, groups=dim_out, with_bn=False)
+#         self.act = nn.ReLU6()
+#         self.aux_g = ConvBN(dim_in, dim_out, 1, with_bn=True)
 
         
+#     def forward(self, x):
+#         input = x
+#         x = self.dwconv(x) 
+#         x1, x2 = self.f1(x), self.f2(x) 
+#         x = self.act(x1) * x2 
+#         x = self.dwconv2(self.g(x)) 
+#         input = self.aux_g(input)
+#         x = input + x
+#         return x
+
+
+class StarBlock(nn.Module):
+    def __init__(self, dim_in, dim_out):
+        super(StarBlock, self).__init__()
+        self.layernorm = LayerNorm(dim_in, "WithBias")
+        self.dwconv = ConvBN(dim_in, dim_in, 7, 1, (7 - 1) // 2, groups=dim_in, with_bn=True)
+        self.f1 = ConvBN(dim_in, dim_in, 1, with_bn=True)
+        self.f2 = ConvBN(dim_in, dim_in, 1, with_bn=True)
+        self.dwconv2 = ConvBN(dim_in, dim_in, 7, 1, (7 - 1) // 2, groups=dim_in, with_bn=True)
+        self.act = nn.ReLU6()
+        self.aux_g = ConvBN(dim_in, dim_in, 1, with_bn=True)
+
     def forward(self, x):
         input = x
-        x = self.dwconv(x) 
-        x1, x2 = self.f1(x), self.f2(x) 
-        x = self.act(x1) * x2 
-        x = self.dwconv2(self.g(x)) 
+        x = self.layernorm(x)
+        x = self.dwconv(x)
+        x1, x2 = self.f1(x), self.f2(x)
+        x = self.act(x1) * x2
+        x = self.dwconv2(x)
         input = self.aux_g(input)
         x = input + x
         return x
